@@ -78,8 +78,11 @@ button { font-family: inherit; }
 
 .grid {
   display: grid;
+  /* 每小节一行；课程色块按实际占用的节次跨行，所以高度与上课时间长短一致 */
+  --sec-h: 33px;
   grid-template-columns: 36px repeat(7, minmax(0, 1fr));
-  gap: 3px;
+  column-gap: 4px;
+  row-gap: 0;
 }
 
 .day-head {
@@ -106,22 +109,21 @@ button { font-family: inherit; }
 
 .period-label b { font-size: 10px; font-weight: 600; color: #475569; }
 
+/* 大节背景块：只是衬底，课程色块盖在它上面 */
 .cell {
-  min-height: 76px;
+  margin: 1.5px 0;
   border-radius: 8px;
   background: var(--card);
-  padding: 2px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .cell.today { background: var(--today); }
 
+/* 课程色块：grid-row / grid-column 由脚本按课程的实际节次设置 */
 .chip {
   appearance: none;
   border: none;
   border-radius: 6px;
+  margin: 1.5px 0;
   padding: 3px 4px;
   font-size: 10px;
   line-height: 1.25;
@@ -130,6 +132,9 @@ button { font-family: inherit; }
   cursor: pointer;
   overflow: hidden;
   word-break: break-all;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .chip .room {
@@ -143,13 +148,17 @@ button { font-family: inherit; }
   overflow: hidden;
 }
 
-.chip.ghost {
-  background: transparent;
-  border: 1px dashed #cbd5e1;
-  color: #94a3b8;
+/* 整周没课时的提示 */
+.empty-week {
+  margin: 10px 6px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: center;
 }
-
-.chip.ghost .room { color: #a8b4c4; }
 
 .c0 { background: #dbeafe; }
 .c1 { background: #dcfce7; }
@@ -390,7 +399,6 @@ button { font-family: inherit; }
   .cell { background: #172033; }
   .chip { color: #0b1220; }
   .chip .room { color: rgba(11, 18, 32, .7); }
-  .chip.ghost { color: #64748b; border-color: #334155; }
   .icon-btn, .btn.ghost { background: #1e293b; color: #e2e8f0; }
   .gate-card input, .week-picker button { background: #0f172a; color: #e2e8f0; }
   .c7 { background: #334155; color: #e2e8f0; }

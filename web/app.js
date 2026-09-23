@@ -5,6 +5,8 @@
  * → 本页拉取 → 用 WebCrypto 解密 → 存 localStorage → 离线可用。
  */
 
+import { isActive, layoutWeek } from './layout.js';
+
 // 网页版从同目录读数据；打包成 Android App 时优先从 GitHub 拉最新，失败则用包内自带的那份
 const BUNDLED_DATA_URL = 'data/schedule.enc.json';
 const REMOTE_DATA_URL = 'https://angmoxi.github.io/hhu-schedule/data/schedule.enc.json';
@@ -146,18 +148,6 @@ function todayColumn() {
   return (days % 7) + 1;
 }
 
-function isActive(course, week) {
-  const spans = course.weeks || [];
-  if (!spans.length) return true;
-  for (const [from, to] of spans) {
-    if (week < from || week > to) continue;
-    if (course.parity === '单' && week % 2 === 0) continue;
-    if (course.parity === '双' && week % 2 === 1) continue;
-    return true;
-  }
-  return false;
-}
-
 /* ------------------------------------------------------------------ 渲染 */
 
 function render() {
@@ -179,46 +169,79 @@ function renderHeader() {
 }
 
 function renderGrid() {
-  const schedule = state.schedule;
   const grid = $('grid');
   grid.innerHTML = '';
+  const layout = layoutWeek(state.schedule, state.week);
   const highlight = todayColumn();
 
-  grid.append(el('div', 'day-head'));
+  // 每小节一行、行高恒定 → 色块高度按实际节次等分
+  grid.style.gridTemplateRows = `auto repeat(${layout.maxSection}, var(--sec-h))`;
+
+  const corner = el('div', 'day-head');
+  corner.style.gridRow = '1';
+  corner.style.gridColumn = '1';
+  grid.append(corner);
   for (let day = 1; day <= 7; day += 1) {
     const head = el('div', 'day-head', WEEKDAY_SHORT[day - 1]);
     if (day === highlight) head.classList.add('today');
+    head.style.gridRow = '1';
+    head.style.gridColumn = String(day + 1);
     grid.append(head);
   }
 
-  for (const period of schedule.periods) {
+  // 大节背景格：跨它包含的若干小节行
+  for (const block of layout.periodBlocks) {
+    const secs = block.sections;
     const label = el('div', 'period-label');
-    const sections = period.sections || [];
-    const span = sections.length ? `${sections[0]}-${sections[sections.length - 1]}节` : period.name;
-    label.append(el('b', '', span));
-    if (period.time) label.append(el('span', '', period.time.slice(0, 5)));
+    label.append(el('b', '', secs.length ? `${secs[0]}-${secs[secs.length - 1]}节` : block.name));
+    if (block.time) label.append(el('span', '', block.time.slice(0, 5)));
+    label.style.gridRow = `${block.first + 1} / span ${block.span}`;
+    label.style.gridColumn = '1';
     grid.append(label);
 
     for (let day = 1; day <= 7; day += 1) {
       const cell = el('div', 'cell');
       if (day === highlight) cell.classList.add('today');
-      const courses = schedule.courses.filter((c) => c.day === day && c.bigPeriod === period.index);
-      const active = courses.filter((c) => isActive(c, state.week));
-      // 别的周才上的课只作为灰显提示，同名课程只留一条，避免格子太挤
-      const ghosts = [...new Map(courses.filter((c) => !isActive(c, state.week)).map((c) => [c.name, c])).values()];
-      const shown = active.length ? active : ghosts.slice(0, 2);
-      for (const course of shown) {
-        cell.append(chipEl(course, day, period.index, !isActive(course, state.week)));
-      }
+      cell.style.gridRow = `${block.first + 1} / span ${block.span}`;
+      cell.style.gridColumn = String(day + 1);
       grid.append(cell);
     }
   }
+
+  // 本周要上的课：按真实节次定位，占几节就是几行高
+  for (const item of layout.items) {
+    const chip = chipEl(item.course, item.day, item.course.bigPeriod);
+    chip.style.gridRow = `${item.start + 1} / span ${item.span}`;
+    chip.style.gridColumn = String(item.day + 1);
+    if (item.lanes > 1) {
+      // 同一时段真有两门课：各占 1/n 宽，并排显示
+      const gap = 2;
+      chip.style.justifySelf = 'start';
+      chip.style.width = `calc((100% - ${(item.lanes - 1) * gap}px) / ${item.lanes})`;
+      chip.style.marginLeft = `calc(${item.lane} * ((100% - ${(item.lanes - 1) * gap}px) / ${item.lanes} + ${gap}px))`;
+    }
+    grid.append(chip);
+  }
+
+  renderEmptyWeek(layout);
 }
 
-function chipEl(course, day, bigPeriod, ghost) {
+/** 整周都没课时给一句提示，免得看起来像界面坏了。 */
+function renderEmptyWeek(layout) {
+  const wrap = document.querySelector('.grid-wrap');
+  let hint = wrap.querySelector('.empty-week');
+  if (!hint) {
+    hint = el('div', 'empty-week');
+    wrap.append(hint);
+  }
+  hint.textContent = layout.hasCoursesThisWeek ? '' : layout.emptyMessage;
+  hint.hidden = layout.hasCoursesThisWeek;
+}
+
+function chipEl(course, day, bigPeriod) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = `chip ${ghost ? 'ghost' : colorClass(course.name)}`;
+  button.className = `chip ${colorClass(course.name)}`;
   button.append(el('span', 'cname', course.name));
   if (course.room) button.append(el('span', 'room', course.room));
   button.addEventListener('click', () => openDetail(day, bigPeriod));
@@ -284,7 +307,10 @@ function closeSheets() {
 
 function openDetail(day, bigPeriod) {
   const period = state.schedule.periods.find((p) => p.index === bigPeriod);
-  const courses = state.schedule.courses.filter((c) => c.day === day && c.bigPeriod === bigPeriod);
+  // 本周要上的课排前面；不在本周的仍然列出（并标注），方便知道这个时段以后会上什么
+  const courses = state.schedule.courses
+    .filter((c) => c.day === day && c.bigPeriod === bigPeriod)
+    .sort((a, b) => Number(isActive(b, state.week)) - Number(isActive(a, state.week)));
   $('detail-title').textContent = `星期${WEEKDAY_SHORT[day - 1]} · ${period ? period.name : ''}`;
 
   const body = $('detail-body');

@@ -4,7 +4,7 @@
  * - 失败响应（404 等）不写入缓存
  */
 const CACHE = 'hhu-schedule-v1';
-const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icon.svg'];
+const ASSETS = ['./', './index.html', './style.css', './app.js', './layout.js', './manifest.webmanifest', './icon.svg'];
 
 const putIfOk = (request, response) => {
   if (response && response.ok) {
