@@ -7,7 +7,7 @@
 
 // 网页版从同目录读数据；打包成 Android App 时优先从 GitHub 拉最新，失败则用包内自带的那份
 const BUNDLED_DATA_URL = 'data/schedule.enc.json';
-const REMOTE_DATA_URL = 'https://boccaccio-0.github.io/hhu-schedule/data/schedule.enc.json';
+const REMOTE_DATA_URL = 'https://angmoxi.github.io/hhu-schedule/data/schedule.enc.json';
 const IS_ANDROID_APP = location.hostname === 'appassets.androidplatform.net';
 const KEY_PASS = 'hhu.pass';
 const KEY_DATA = 'hhu.data';
