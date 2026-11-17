@@ -5,7 +5,7 @@
  * → 本页拉取 → 用 WebCrypto 解密 → 存 localStorage → 离线可用。
  */
 
-import { isActive, layoutWeek } from './layout.js';
+import { isActive, layoutWeek, timeRange } from './layout.js';
 
 // 网页版从同目录读数据；打包成 Android App 时优先从 GitHub 拉最新，失败则用包内自带的那份
 const BUNDLED_DATA_URL = 'data/schedule.enc.json';
@@ -244,6 +244,17 @@ function chipEl(course, day, bigPeriod) {
   button.className = `chip ${colorClass(course.name)}`;
   button.append(el('span', 'cname', course.name));
   if (course.room) button.append(el('span', 'room', course.room));
+  // 只有「没占满自己所属大节」的课才在色块上标时间：这类课的起止时间容易被误解，
+  // 占满整节的课时间本来就是大节时间，标了反而挤。
+  const secs = course.sections || [];
+  const period = state.schedule.periods.find((p) => p.index === bigPeriod);
+  const full = (period && period.sections) || [];
+  const irregular = secs.length && full.length
+    && (secs[0] !== full[0] || secs[secs.length - 1] !== full[full.length - 1]);
+  if (irregular) {
+    const range = timeRange(state.schedule.sectionTimes, secs[0], secs[secs.length - 1]);
+    if (range) button.append(el('span', 'time', range));
+  }
   button.addEventListener('click', () => openDetail(day, bigPeriod));
   return button;
 }
@@ -336,8 +347,15 @@ function openDetail(day, bigPeriod) {
     };
     add('教师', course.teacher);
     add('教室', course.room);
-    const sections = (course.sections || []).join('-');
-    add('节次', [sections ? `第 ${sections} 节` : '', period && period.time ? period.time : ''].filter(Boolean).join(' · '));
+    const secs = course.sections || [];
+    const range = secs.length
+      ? timeRange(state.schedule.sectionTimes, secs[0], secs[secs.length - 1])
+      : '';
+    // 优先用「每小节时间」算出的真实起止；没有这份数据时才回退到大节时间
+    add('节次', [
+      secs.length ? `第 ${secs.join('-')} 节` : '',
+      range || (period && period.time ? period.time : ''),
+    ].filter(Boolean).join(' · '));
     add('周次', weeksText(course));
     add('备注', course.note);
     box.append(dl);

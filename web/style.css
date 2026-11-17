@@ -148,6 +148,15 @@ button { font-family: inherit; }
   overflow: hidden;
 }
 
+/* 跨节课程的真实起止时间（只给没占满整节的课显示） */
+.chip .time {
+  margin-top: 1px;
+  font-size: 9px;
+  line-height: 1.15;
+  color: rgba(15, 23, 42, .55);
+  white-space: nowrap;
+}
+
 /* 整周没课时的提示 */
 .empty-week {
   margin: 10px 6px 0;
@@ -399,6 +408,7 @@ button { font-family: inherit; }
   .cell { background: #172033; }
   .chip { color: #0b1220; }
   .chip .room { color: rgba(11, 18, 32, .7); }
+  .chip .time { color: rgba(11, 18, 32, .6); }
   .icon-btn, .btn.ghost { background: #1e293b; color: #e2e8f0; }
   .gate-card input, .week-picker button { background: #0f172a; color: #e2e8f0; }
   .c7 { background: #334155; color: #e2e8f0; }

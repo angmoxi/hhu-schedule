@@ -31,6 +31,20 @@ export function sectionRange(course) {
 }
 
 /**
+ * 用「每小节时间」算出某段节次的真实起止时间，例如第 1-4 节 → 08:00-11:25。
+ *
+ * 数据里 sectionTimes 缺失时返回空串，调用方自行回退到大节时间。
+ */
+export function timeRange(sectionTimes, start, end) {
+  if (!Array.isArray(sectionTimes) || !sectionTimes.length) return "";
+  const map = new Map(sectionTimes.map((t) => [t.section, t]));
+  const first = map.get(start);
+  const last = map.get(end);
+  if (!first || !last) return "";
+  return `${first.start}-${last.end}`;
+}
+
+/**
  * 同一天里时间重叠的课自动并排（各占 1/n 宽），只有真重叠时才触发。
  * 现在 18 门课没有任何重叠，这是为以后加课留的保险。
  */
